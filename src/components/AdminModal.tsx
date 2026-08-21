@@ -93,7 +93,7 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
       return;
     }
 
-    const headers = ['訂單編號', '訂購時間', '客戶姓名', '聯絡電話', '配送地址/方式', '取貨/到貨日期', '訂購品項', '總金額', '匯款末五碼', '訂單狀態'];
+    const headers = ['訂單編號', '訂購時間', '客戶姓名', '聯絡電話', '配送地址/方式', '取貨/寄出日期', '訂購品項', '總金額', '匯款末五碼', '訂單狀態'];
     const rows = orders.map(r => [
       r.id,
       new Date(r.createdAt).toLocaleString(),

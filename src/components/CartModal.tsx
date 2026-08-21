@@ -148,7 +148,7 @@ export function CartModal({ isOpen, cart, onClose, onUpdateQty, onSubmit }: Cart
 
             <div>
               <label className="block text-xs text-stone-400 mb-1">
-                取貨/到貨日期 * <span className="text-amber-400 ml-1">(宅配恕無法指定日期、時段到貨，統一於9/14那週出貨)</span>
+                取貨/寄出日期 * <span className="text-amber-400 ml-1">(宅配恕無法指定日期、時段到貨，統一於9/14那週出貨)</span>
               </label>
               <input type="date" required value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500" />
             </div>
