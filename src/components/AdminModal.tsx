@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Lock, RefreshCw, X } from 'lucide-react';
+import { Lock, RefreshCw, X, Download } from 'lucide-react';
 import { Order } from '../types';
 
 interface AdminModalProps {
@@ -69,6 +69,40 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
     }
   };
 
+  const handleExportExcel = () => {
+    if (orders.length === 0) {
+      alert('目前沒有訂單資料可供匯出');
+      return;
+    }
+
+    const headers = ['訂單編號', '訂購時間', '客戶姓名', '聯絡電話', '配送地址/方式', '訂購品項', '總金額', '匯款末五碼', '訂單狀態'];
+    const rows = orders.map(r => [
+      r.id,
+      new Date(r.createdAt).toLocaleString(),
+      r.customerName,
+      r.phone,
+      r.address || '面交自取',
+      r.items.map(i => `${i.name} x ${i.qty}`).join(' ; '),
+      r.totalAmount,
+      r.bankLast5,
+      r.status
+    ]);
+    
+    // Convert to CSV string escaping quotes correctly
+    const csvContent = [headers, ...rows].map(e => e.map(item => `"${String(item).replace(/"/g, '""')}"`).join(',')).join('\n');
+    
+    // Add UTF-8 BOM for Excel to properly read Chinese characters
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `烤肉訂單資料_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -109,11 +143,16 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
           </div>
         ) : (
           <div className="p-6 overflow-y-auto custom-scrollbar flex-grow space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <p className="text-xs text-stone-400">以下顯示所有客戶透過網頁送出的烤肉訂單與匯款後五碼資料：</p>
-              <button onClick={fetchOrders} disabled={loading} className="bg-stone-800 hover:bg-stone-700 text-amber-400 text-xs px-3 py-1.5 rounded-xl border border-stone-700 flex items-center gap-1 disabled:opacity-50">
-                <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> 重新整理
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={handleExportExcel} disabled={orders.length === 0} className="bg-stone-800 hover:bg-stone-700 text-green-400 text-xs px-3 py-1.5 rounded-xl border border-stone-700 flex items-center gap-1 disabled:opacity-50 transition-colors">
+                  <Download size={14} /> 匯出 Excel
+                </button>
+                <button onClick={fetchOrders} disabled={loading} className="bg-stone-800 hover:bg-stone-700 text-amber-400 text-xs px-3 py-1.5 rounded-xl border border-stone-700 flex items-center gap-1 disabled:opacity-50 transition-colors">
+                  <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> 重新整理
+                </button>
+              </div>
             </div>
             
             <div className="overflow-x-auto">
