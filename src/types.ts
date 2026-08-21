@@ -11,6 +11,7 @@ export interface Order {
   customerName: string;
   phone: string;
   deliveryMethod: string;
+  deliveryDate?: string;
   address: string;
   bankLast5: string;
   note: string;

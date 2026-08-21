@@ -14,6 +14,7 @@ export function CartModal({ isOpen, cart, onClose, onUpdateQty, onSubmit }: Cart
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [deliveryMethod, setDeliveryMethod] = useState('宅配');
+  const [deliveryDate, setDeliveryDate] = useState('');
   const [address, setAddress] = useState('');
   const [bankLast5, setBankLast5] = useState('');
   const [note, setNote] = useState('');
@@ -39,6 +40,7 @@ export function CartModal({ isOpen, cart, onClose, onUpdateQty, onSubmit }: Cart
         customerName: name,
         phone,
         deliveryMethod,
+        deliveryDate,
         address: deliveryMethod === '自取' ? '公司面交自取：新北市三重區光復路一段68巷5號' : address,
         bankLast5,
         note,
@@ -51,6 +53,7 @@ export function CartModal({ isOpen, cart, onClose, onUpdateQty, onSubmit }: Cart
       setName('');
       setPhone('');
       setDeliveryMethod('宅配');
+      setDeliveryDate('');
       setAddress('');
       setBankLast5('');
       setNote('');
@@ -144,7 +147,12 @@ export function CartModal({ isOpen, cart, onClose, onUpdateQty, onSubmit }: Cart
             )}
 
             <div>
-              <label className="block text-xs text-stone-400 mb-1">備註事項 (如指定到貨日期等)</label>
+              <label className="block text-xs text-stone-400 mb-1">取貨/到貨日期 *</label>
+              <input type="date" required value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)} className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500" />
+            </div>
+
+            <div>
+              <label className="block text-xs text-stone-400 mb-1">備註事項</label>
               <textarea rows={2} value={note} onChange={e => setNote(e.target.value)} className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500"></textarea>
             </div>
 

@@ -93,13 +93,14 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
       return;
     }
 
-    const headers = ['訂單編號', '訂購時間', '客戶姓名', '聯絡電話', '配送地址/方式', '訂購品項', '總金額', '匯款末五碼', '訂單狀態'];
+    const headers = ['訂單編號', '訂購時間', '客戶姓名', '聯絡電話', '配送地址/方式', '取貨/到貨日期', '訂購品項', '總金額', '匯款末五碼', '訂單狀態'];
     const rows = orders.map(r => [
       r.id,
       new Date(r.createdAt).toLocaleString(),
       r.customerName,
       r.phone,
       r.address || '面交自取',
+      r.deliveryDate || '未指定',
       r.items.map(i => `${i.name} x ${i.qty}`).join(' ; '),
       r.totalAmount,
       r.bankLast5,
@@ -254,7 +255,8 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
                         </td>
                         <td className="p-3 text-xs align-top">
                           <span className="font-bold text-amber-400">${r.totalAmount}</span><br/>
-                          <span className="text-stone-400">{r.deliveryMethod}</span>
+                          <span className="text-stone-400">{r.deliveryMethod}</span><br/>
+                          <span className="text-stone-400 text-[10px] bg-stone-900 px-1 py-0.5 rounded border border-stone-800 mt-1 inline-block">日期: {r.deliveryDate || '未指定'}</span>
                         </td>
                         <td className="p-3 text-xs align-top">
                           <span className="bg-amber-950/40 border border-amber-600/40 text-amber-300 px-2 py-1 rounded font-mono font-bold">{r.bankLast5}</span>
