@@ -16,6 +16,7 @@ export function CartModal({ isOpen, cart, onClose, onUpdateQty, onSubmit }: Cart
   const [deliveryMethod, setDeliveryMethod] = useState('宅配');
   const [deliveryDate, setDeliveryDate] = useState('');
   const [address, setAddress] = useState('');
+  const [referrer, setReferrer] = useState('');
   const [bankLast5, setBankLast5] = useState('');
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,6 +43,7 @@ export function CartModal({ isOpen, cart, onClose, onUpdateQty, onSubmit }: Cart
         deliveryMethod,
         deliveryDate,
         address: deliveryMethod === '自取' ? '公司面交自取：新北市三重區光復路一段68巷5號' : address,
+        referrer,
         bankLast5,
         note,
         items: cart,
@@ -55,6 +57,7 @@ export function CartModal({ isOpen, cart, onClose, onUpdateQty, onSubmit }: Cart
       setDeliveryMethod('宅配');
       setDeliveryDate('');
       setAddress('');
+      setReferrer('');
       setBankLast5('');
       setNote('');
     } finally {
@@ -139,12 +142,18 @@ export function CartModal({ isOpen, cart, onClose, onUpdateQty, onSubmit }: Cart
               </div>
             </div>
 
-            {deliveryMethod === '宅配' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-stone-400 mb-1">收件地址 *</label>
-                <input type="text" required placeholder="請輸入完整宅配地址" value={address} onChange={e => setAddress(e.target.value)} className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500" />
+                <label className="block text-xs text-stone-400 mb-1">推薦人 *</label>
+                <input type="text" required placeholder="請輸入推薦人姓名" value={referrer} onChange={e => setReferrer(e.target.value)} className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500" />
               </div>
-            )}
+              {deliveryMethod === '宅配' && (
+                <div>
+                  <label className="block text-xs text-stone-400 mb-1">收件地址 *</label>
+                  <input type="text" required placeholder="請輸入完整宅配地址" value={address} onChange={e => setAddress(e.target.value)} className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500" />
+                </div>
+              )}
+            </div>
 
             <div>
               <label className="block text-xs text-stone-400 mb-1">

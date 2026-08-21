@@ -93,10 +93,11 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
       return;
     }
 
-    const headers = ['訂單編號', '訂購時間', '客戶姓名', '聯絡電話', '配送地址/方式', '取貨/寄出日期', '訂購品項', '總金額', '匯款末五碼', '訂單狀態'];
+    const headers = ['訂單編號', '訂購時間', '推薦人', '客戶姓名', '聯絡電話', '配送地址/方式', '取貨/寄出日期', '訂購品項', '總金額', '匯款末五碼', '訂單狀態'];
     const rows = orders.map(r => [
       r.id,
       new Date(r.createdAt).toLocaleString(),
+      r.referrer || '無',
       r.customerName,
       r.phone,
       r.address || '面交自取',
@@ -246,7 +247,8 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
                         <td className="p-3 text-xs align-top">
                           <strong className="text-white">{r.customerName}</strong><br/>
                           <span>{r.phone}</span><br/>
-                          <span className="text-stone-400 line-clamp-2 max-w-[150px]">{r.address || '面交自取'}</span>
+                          <span className="text-stone-400 line-clamp-2 max-w-[150px]">{r.address || '面交自取'}</span><br/>
+                          <span className="text-amber-400/80 text-[10px] mt-1 inline-block">推薦人: {r.referrer || '無'}</span>
                         </td>
                         <td className="p-3 align-top">
                           {r.items.map((i, idx) => (

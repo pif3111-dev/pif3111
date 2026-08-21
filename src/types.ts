@@ -13,6 +13,7 @@ export interface Order {
   deliveryMethod: string;
   deliveryDate?: string;
   address: string;
+  referrer: string;
   bankLast5: string;
   note: string;
   items: CartItem[];
