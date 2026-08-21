@@ -8,6 +8,9 @@ interface AdminModalProps {
 }
 
 export function AdminModal({ isOpen, onClose }: AdminModalProps) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,10 +33,25 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
   };
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && isAuthenticated) {
       fetchOrders();
     }
-  }, [isOpen]);
+    if (!isOpen) {
+      // Reset state when closed
+      setIsAuthenticated(false);
+      setPasswordInput('');
+    }
+  }, [isOpen, isAuthenticated]);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordInput === '60993211') {
+      setIsAuthenticated(true);
+    } else {
+      alert('密碼錯誤！');
+      setPasswordInput('');
+    }
+  };
 
   const updateOrderStatus = async (id: string, newStatus: string) => {
     try {
@@ -65,76 +83,102 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
           </button>
         </div>
         
-        <div className="p-6 overflow-y-auto custom-scrollbar flex-grow space-y-4">
-          <div className="flex justify-between items-center">
-            <p className="text-xs text-stone-400">以下顯示所有客戶透過網頁送出的烤肉訂單與匯款後五碼資料：</p>
-            <button onClick={fetchOrders} disabled={loading} className="bg-stone-800 hover:bg-stone-700 text-amber-400 text-xs px-3 py-1.5 rounded-xl border border-stone-700 flex items-center gap-1 disabled:opacity-50">
-              <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> 重新整理
-            </button>
+        {!isAuthenticated ? (
+          <div className="p-10 flex flex-col items-center justify-center space-y-6">
+            <div className="bg-stone-800 p-4 rounded-full text-amber-400 mb-2">
+              <Lock size={48} />
+            </div>
+            <h4 className="text-xl font-bold text-white">需要密碼驗證</h4>
+            <p className="text-stone-400 text-sm text-center">請輸入廠商專屬密碼以存取後台管理系統</p>
+            <form onSubmit={handleLogin} className="flex flex-col w-full max-w-xs space-y-4">
+              <input
+                type="password"
+                placeholder="請輸入密碼..."
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                className="bg-stone-950 border border-stone-700 rounded-xl px-4 py-3 text-white text-center tracking-widest focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors"
+                autoFocus
+              />
+              <button
+                type="submit"
+                className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold py-3 rounded-xl transition-all shadow-md w-full"
+              >
+                登入
+              </button>
+            </form>
           </div>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-stone-300">
-              <thead className="bg-stone-950 text-xs text-amber-400 uppercase border-b border-stone-800">
-                <tr>
-                  <th className="p-3 whitespace-nowrap">訂單編號 / 時間</th>
-                  <th className="p-3 whitespace-nowrap">客戶資訊</th>
-                  <th className="p-3">訂購品項</th>
-                  <th className="p-3 whitespace-nowrap">金額 / 配送</th>
-                  <th className="p-3 whitespace-nowrap">匯款末五碼</th>
-                  <th className="p-3 whitespace-nowrap">狀態管理</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-800">
-                {loading && orders.length === 0 ? (
-                  <tr><td colSpan={6} className="p-6 text-center text-stone-500">載入中...</td></tr>
-                ) : error ? (
-                  <tr><td colSpan={6} className="p-6 text-center text-red-400">{error}</td></tr>
-                ) : orders.length === 0 ? (
-                  <tr><td colSpan={6} className="p-6 text-center text-stone-500">目前尚無任何客戶訂單紀錄。</td></tr>
-                ) : (
-                  orders.map(r => (
-                    <tr key={r.id} className="hover:bg-stone-950/60 transition-colors">
-                      <td className="p-3 text-xs align-top">
-                        <span className="font-mono text-amber-400">{r.id.substring(0,6)}...</span><br/>
-                        <span className="text-stone-500">{new Date(r.createdAt).toLocaleString()}</span>
-                      </td>
-                      <td className="p-3 text-xs align-top">
-                        <strong className="text-white">{r.customerName}</strong><br/>
-                        <span>{r.phone}</span><br/>
-                        <span className="text-stone-400 line-clamp-2 max-w-[150px]">{r.address || '面交自取'}</span>
-                      </td>
-                      <td className="p-3 align-top">
-                        {r.items.map((i, idx) => (
-                          <div key={idx} className="text-xs text-stone-300">• {i.name} x {i.qty}</div>
-                        ))}
-                      </td>
-                      <td className="p-3 text-xs align-top">
-                        <span className="font-bold text-amber-400">${r.totalAmount}</span><br/>
-                        <span className="text-stone-400">{r.deliveryMethod}</span>
-                      </td>
-                      <td className="p-3 text-xs align-top">
-                        <span className="bg-amber-950/40 border border-amber-600/40 text-amber-300 px-2 py-1 rounded font-mono font-bold">{r.bankLast5}</span>
-                      </td>
-                      <td className="p-3 text-xs align-top">
-                        <select 
-                          value={r.status}
-                          onChange={(e) => updateOrderStatus(r.id, e.target.value)}
-                          className="bg-stone-950 border border-stone-700 rounded px-2 py-1 text-white text-xs w-full"
-                        >
-                          <option value="未對帳">未對帳</option>
-                          <option value="已匯款/備貨中">已匯款/備貨中</option>
-                          <option value="已出貨/可自取">已出貨/可自取</option>
-                          <option value="已完成">已完成</option>
-                        </select>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        ) : (
+          <div className="p-6 overflow-y-auto custom-scrollbar flex-grow space-y-4">
+            <div className="flex justify-between items-center">
+              <p className="text-xs text-stone-400">以下顯示所有客戶透過網頁送出的烤肉訂單與匯款後五碼資料：</p>
+              <button onClick={fetchOrders} disabled={loading} className="bg-stone-800 hover:bg-stone-700 text-amber-400 text-xs px-3 py-1.5 rounded-xl border border-stone-700 flex items-center gap-1 disabled:opacity-50">
+                <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> 重新整理
+              </button>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-stone-300">
+                <thead className="bg-stone-950 text-xs text-amber-400 uppercase border-b border-stone-800">
+                  <tr>
+                    <th className="p-3 whitespace-nowrap">訂單編號 / 時間</th>
+                    <th className="p-3 whitespace-nowrap">客戶資訊</th>
+                    <th className="p-3">訂購品項</th>
+                    <th className="p-3 whitespace-nowrap">金額 / 配送</th>
+                    <th className="p-3 whitespace-nowrap">匯款末五碼</th>
+                    <th className="p-3 whitespace-nowrap">狀態管理</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-800">
+                  {loading && orders.length === 0 ? (
+                    <tr><td colSpan={6} className="p-6 text-center text-stone-500">載入中...</td></tr>
+                  ) : error ? (
+                    <tr><td colSpan={6} className="p-6 text-center text-red-400">{error}</td></tr>
+                  ) : orders.length === 0 ? (
+                    <tr><td colSpan={6} className="p-6 text-center text-stone-500">目前尚無任何客戶訂單紀錄。</td></tr>
+                  ) : (
+                    orders.map(r => (
+                      <tr key={r.id} className="hover:bg-stone-950/60 transition-colors">
+                        <td className="p-3 text-xs align-top">
+                          <span className="font-mono text-amber-400">{r.id.substring(0,6)}...</span><br/>
+                          <span className="text-stone-500">{new Date(r.createdAt).toLocaleString()}</span>
+                        </td>
+                        <td className="p-3 text-xs align-top">
+                          <strong className="text-white">{r.customerName}</strong><br/>
+                          <span>{r.phone}</span><br/>
+                          <span className="text-stone-400 line-clamp-2 max-w-[150px]">{r.address || '面交自取'}</span>
+                        </td>
+                        <td className="p-3 align-top">
+                          {r.items.map((i, idx) => (
+                            <div key={idx} className="text-xs text-stone-300">• {i.name} x {i.qty}</div>
+                          ))}
+                        </td>
+                        <td className="p-3 text-xs align-top">
+                          <span className="font-bold text-amber-400">${r.totalAmount}</span><br/>
+                          <span className="text-stone-400">{r.deliveryMethod}</span>
+                        </td>
+                        <td className="p-3 text-xs align-top">
+                          <span className="bg-amber-950/40 border border-amber-600/40 text-amber-300 px-2 py-1 rounded font-mono font-bold">{r.bankLast5}</span>
+                        </td>
+                        <td className="p-3 text-xs align-top">
+                          <select 
+                            value={r.status}
+                            onChange={(e) => updateOrderStatus(r.id, e.target.value)}
+                            className="bg-stone-950 border border-stone-700 rounded px-2 py-1 text-white text-xs w-full"
+                          >
+                            <option value="未對帳">未對帳</option>
+                            <option value="已匯款/備貨中">已匯款/備貨中</option>
+                            <option value="已出貨/可自取">已出貨/可自取</option>
+                            <option value="已完成">已完成</option>
+                          </select>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
