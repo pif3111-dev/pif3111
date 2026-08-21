@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Lock, RefreshCw, X, Download } from 'lucide-react';
+import { Lock, RefreshCw, X, Download, Trash2, DollarSign, ClipboardList, Activity } from 'lucide-react';
 import { Order } from '../types';
 
 interface AdminModalProps {
@@ -66,6 +66,24 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
       setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
     } catch (err) {
       alert('更新狀態失敗，請稍後再試。');
+    }
+  };
+
+  const deleteOrder = async (id: string) => {
+    if (!window.confirm('確定要刪除這筆訂單嗎？此操作無法還原。')) {
+      return;
+    }
+    
+    try {
+      const res = await fetch(`/api/orders/${id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete order');
+      
+      // Update local state to remove the order
+      setOrders(prev => prev.filter(o => o.id !== id));
+    } catch (err) {
+      alert('刪除訂單失敗，請稍後再試。');
     }
   };
 
@@ -142,7 +160,50 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
             </form>
           </div>
         ) : (
-          <div className="p-6 overflow-y-auto custom-scrollbar flex-grow space-y-4">
+          <div className="p-6 overflow-y-auto custom-scrollbar flex-grow space-y-6">
+            
+            {/* Dashboard Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-stone-950 p-4 rounded-2xl border border-stone-800 flex flex-col justify-between shadow-inner">
+                <div className="flex justify-between items-start">
+                  <div className="text-stone-400 text-xs mb-2">總訂單數</div>
+                  <ClipboardList size={16} className="text-amber-500" />
+                </div>
+                <div className="text-3xl font-black text-white">{orders.length} <span className="text-xs font-normal text-stone-500">筆</span></div>
+              </div>
+              <div className="bg-stone-950 p-4 rounded-2xl border border-stone-800 flex flex-col justify-between shadow-inner">
+                <div className="flex justify-between items-start">
+                  <div className="text-stone-400 text-xs mb-2">總營業額</div>
+                  <DollarSign size={16} className="text-green-500" />
+                </div>
+                <div className="text-3xl font-black text-white"><span className="text-sm font-normal text-stone-500 mr-1">$</span>{orders.reduce((sum, o) => sum + o.totalAmount, 0).toLocaleString()}</div>
+              </div>
+              <div className="bg-stone-950 p-4 rounded-2xl border border-stone-800 flex flex-col justify-between col-span-2 shadow-inner">
+                <div className="flex justify-between items-start">
+                  <div className="text-stone-400 text-xs mb-2">出貨狀態分布</div>
+                  <Activity size={16} className="text-blue-400" />
+                </div>
+                <div className="grid grid-cols-4 gap-2 text-center mt-auto bg-stone-900 rounded-xl p-2 border border-stone-800/50">
+                  <div className="flex flex-col items-center">
+                    <div className="text-lg font-bold text-red-400">{orders.filter(o => o.status === '未對帳').length}</div>
+                    <div className="text-[10px] text-stone-400">未對帳</div>
+                  </div>
+                  <div className="flex flex-col items-center border-l border-stone-800">
+                    <div className="text-lg font-bold text-amber-400">{orders.filter(o => o.status === '已匯款/備貨中').length}</div>
+                    <div className="text-[10px] text-stone-400">備貨中</div>
+                  </div>
+                  <div className="flex flex-col items-center border-l border-stone-800">
+                    <div className="text-lg font-bold text-blue-400">{orders.filter(o => o.status === '已出貨/可自取').length}</div>
+                    <div className="text-[10px] text-stone-400">可自取/出貨</div>
+                  </div>
+                  <div className="flex flex-col items-center border-l border-stone-800">
+                    <div className="text-lg font-bold text-green-400">{orders.filter(o => o.status === '已完成').length}</div>
+                    <div className="text-[10px] text-stone-400">已完成</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <p className="text-xs text-stone-400">以下顯示所有客戶透過網頁送出的烤肉訂單與匯款後五碼資料：</p>
               <div className="flex items-center gap-2">
@@ -199,16 +260,24 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
                           <span className="bg-amber-950/40 border border-amber-600/40 text-amber-300 px-2 py-1 rounded font-mono font-bold">{r.bankLast5}</span>
                         </td>
                         <td className="p-3 text-xs align-top">
-                          <select 
-                            value={r.status}
-                            onChange={(e) => updateOrderStatus(r.id, e.target.value)}
-                            className="bg-stone-950 border border-stone-700 rounded px-2 py-1 text-white text-xs w-full"
-                          >
-                            <option value="未對帳">未對帳</option>
-                            <option value="已匯款/備貨中">已匯款/備貨中</option>
-                            <option value="已出貨/可自取">已出貨/可自取</option>
-                            <option value="已完成">已完成</option>
-                          </select>
+                          <div className="flex flex-col gap-2">
+                            <select 
+                              value={r.status}
+                              onChange={(e) => updateOrderStatus(r.id, e.target.value)}
+                              className="bg-stone-950 border border-stone-700 rounded px-2 py-1 text-white text-xs w-full"
+                            >
+                              <option value="未對帳">未對帳</option>
+                              <option value="已匯款/備貨中">已匯款/備貨中</option>
+                              <option value="已出貨/可自取">已出貨/可自取</option>
+                              <option value="已完成">已完成</option>
+                            </select>
+                            <button 
+                              onClick={() => deleteOrder(r.id)}
+                              className="flex items-center justify-center gap-1 w-full bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-900/50 rounded px-2 py-1 transition-colors"
+                            >
+                              <Trash2 size={12} /> 刪除訂單
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
