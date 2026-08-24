@@ -1,6 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Lock, RefreshCw, X, Download, Trash2, DollarSign, ClipboardList, Activity, Edit, Plus } from 'lucide-react';
-import { Order } from '../types';
+import { Order, CartItem } from '../types';
+
+const PRODUCT_OPTIONS = [
+  { type: 'set', name: 'A 經典雙響豬牛餐', price: 666 },
+  { type: 'set', name: 'B 極致肉食豪華餐', price: 988 },
+  { type: 'set', name: 'C 豪氣羊牛大賞餐', price: 1388 },
+  { type: 'set', name: 'D 經典超值餐', price: 555 },
+  { type: 'addon', name: '加購A：極上日本和牛板腱烤肉片 (300g)', price: 799 },
+  { type: 'addon', name: '加購B：極致霸氣大戰斧豬排 (1支)', price: 199 },
+] as const;
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -25,6 +34,51 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
   const [formAmount, setFormAmount] = useState('');
   const [formBankLast5, setFormBankLast5] = useState('');
   const [formNote, setFormNote] = useState('');
+  
+  const [formItems, setFormItems] = useState<CartItem[]>([]);
+  const [formDiscount, setFormDiscount] = useState<string>('100');
+
+  const recalculateAmount = (items: CartItem[], discountStr: string) => {
+    const sub = items.reduce((sum, i) => sum + i.price * i.qty, 0);
+    const d = parseFloat(discountStr);
+    const discount = isNaN(d) ? 100 : d;
+    return Math.round(sub * (discount / 100));
+  };
+
+  const handleAddItem = () => {
+    const newItems = [...formItems, { type: 'set', name: PRODUCT_OPTIONS[0].name, price: PRODUCT_OPTIONS[0].price, qty: 1 } as CartItem];
+    setFormItems(newItems);
+    setFormAmount(recalculateAmount(newItems, formDiscount).toString());
+  };
+
+  const handleUpdateItem = (index: number, field: keyof CartItem, value: any) => {
+    const newItems = [...formItems];
+    if (field === 'name') {
+      const product = PRODUCT_OPTIONS.find(p => p.name === value);
+      if (product) {
+         newItems[index] = { ...newItems[index], name: product.name, price: product.price, type: product.type };
+      } else {
+         newItems[index] = { ...newItems[index], name: value };
+      }
+    } else if (field === 'qty') {
+      newItems[index] = { ...newItems[index], qty: parseInt(value) || 1 };
+    } else if (field === 'price') {
+      newItems[index] = { ...newItems[index], price: parseInt(value) || 0 };
+    }
+    setFormItems(newItems);
+    setFormAmount(recalculateAmount(newItems, formDiscount).toString());
+  };
+
+  const handleRemoveItem = (index: number) => {
+    const newItems = formItems.filter((_, i) => i !== index);
+    setFormItems(newItems);
+    setFormAmount(recalculateAmount(newItems, formDiscount).toString());
+  };
+
+  const handleDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormDiscount(e.target.value);
+    setFormAmount(recalculateAmount(formItems, e.target.value).toString());
+  };
 
   const openForm = (order?: Order) => {
     if (order) {
@@ -37,6 +91,8 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
       setFormAmount(order.totalAmount.toString());
       setFormBankLast5(order.bankLast5);
       setFormNote(order.note || '');
+      setFormItems(order.items || []);
+      setFormDiscount('100');
     } else {
       setEditingOrder(null);
       setFormName('');
@@ -47,6 +103,8 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
       setFormAmount('0');
       setFormBankLast5('');
       setFormNote('');
+      setFormItems([]);
+      setFormDiscount('100');
     }
     setIsFormOpen(true);
   };
@@ -65,8 +123,8 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
         note: formNote,
         // Default values for new orders:
         deliveryMethod: editingOrder ? editingOrder.deliveryMethod : '人工新增',
-        items: editingOrder ? editingOrder.items : [],
-        subtotal: editingOrder ? editingOrder.subtotal : parseInt(formAmount) || 0,
+        items: formItems,
+        subtotal: formItems.reduce((sum, i) => sum + i.price * i.qty, 0),
         shipping: editingOrder ? editingOrder.shipping : 0,
       };
 
@@ -413,14 +471,73 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
                   <label className="block text-xs text-stone-400 mb-1">配送地址</label>
                   <input type="text" value={formAddress} onChange={e => setFormAddress(e.target.value)} className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors" />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                
+                {/* 訂購品項區塊 */}
+                <div className="bg-stone-950/50 p-4 rounded-xl border border-stone-800">
+                  <div className="flex justify-between items-center mb-3">
+                    <label className="block text-xs font-bold text-amber-500">訂購品項</label>
+                    <button type="button" onClick={handleAddItem} className="text-xs bg-stone-800 hover:bg-stone-700 text-amber-400 px-2 py-1 rounded-md flex items-center gap-1 transition-colors">
+                      <Plus size={12} /> 新增品項
+                    </button>
+                  </div>
+                  {formItems.length === 0 ? (
+                    <div className="text-center text-xs text-stone-500 py-2">目前沒有品項</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {formItems.map((item, idx) => (
+                        <div key={idx} className="flex flex-col sm:flex-row gap-2 items-start sm:items-center bg-stone-900 p-2 rounded-lg border border-stone-700/50">
+                          <select 
+                            value={item.name} 
+                            onChange={e => handleUpdateItem(idx, 'name', e.target.value)}
+                            className="flex-grow bg-stone-950 border border-stone-700 rounded-md px-2 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                          >
+                            {PRODUCT_OPTIONS.map((p, pIdx) => (
+                              <option key={pIdx} value={p.name}>{p.name} (${p.price})</option>
+                            ))}
+                          </select>
+                          <div className="flex gap-2 w-full sm:w-auto">
+                            <input 
+                              type="number" 
+                              min="1"
+                              value={item.qty} 
+                              onChange={e => handleUpdateItem(idx, 'qty', e.target.value)}
+                              className="w-16 bg-stone-950 border border-stone-700 rounded-md px-2 py-1.5 text-xs text-center text-white focus:outline-none focus:border-amber-500"
+                              placeholder="數量"
+                            />
+                            <input 
+                              type="number" 
+                              value={item.price} 
+                              onChange={e => handleUpdateItem(idx, 'price', e.target.value)}
+                              className="w-20 bg-stone-950 border border-stone-700 rounded-md px-2 py-1.5 text-xs text-center text-white focus:outline-none focus:border-amber-500"
+                              placeholder="單價"
+                            />
+                            <button type="button" onClick={() => handleRemoveItem(idx)} className="text-red-400 hover:text-red-300 p-1.5 bg-red-950/30 rounded-md">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs text-stone-400 mb-1">總金額 (可含折扣) *</label>
+                    <label className="block text-xs text-stone-400 mb-1">折扣折數 (%)</label>
+                    <div className="relative">
+                      <input type="number" min="0" max="100" value={formDiscount} onChange={handleDiscountChange} className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors" placeholder="100 為無折扣" />
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs text-stone-400 mb-1">總金額 (折扣後)*</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">$</span>
                       <input type="number" required value={formAmount} onChange={e => setFormAmount(e.target.value)} className="w-full bg-stone-950 border border-stone-700 rounded-xl pl-7 pr-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors" />
                     </div>
                   </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs text-stone-400 mb-1">取貨/寄出日期</label>
                     <input type="date" value={formDeliveryDate} onChange={e => setFormDeliveryDate(e.target.value)} className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors" />
