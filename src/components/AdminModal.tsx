@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Lock, RefreshCw, X, Download, Trash2, DollarSign, ClipboardList, Activity } from 'lucide-react';
+import { Lock, RefreshCw, X, Download, Trash2, DollarSign, ClipboardList, Activity, Edit, Plus } from 'lucide-react';
 import { Order } from '../types';
 
 interface AdminModalProps {
@@ -14,6 +14,85 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [formName, setFormName] = useState('');
+  const [formPhone, setFormPhone] = useState('');
+  const [formAddress, setFormAddress] = useState('');
+  const [formReferrer, setFormReferrer] = useState('');
+  const [formDeliveryDate, setFormDeliveryDate] = useState('');
+  const [formAmount, setFormAmount] = useState('');
+  const [formBankLast5, setFormBankLast5] = useState('');
+  const [formNote, setFormNote] = useState('');
+
+  const openForm = (order?: Order) => {
+    if (order) {
+      setEditingOrder(order);
+      setFormName(order.customerName);
+      setFormPhone(order.phone);
+      setFormAddress(order.address);
+      setFormReferrer(order.referrer || '');
+      setFormDeliveryDate(order.deliveryDate || '');
+      setFormAmount(order.totalAmount.toString());
+      setFormBankLast5(order.bankLast5);
+      setFormNote(order.note || '');
+    } else {
+      setEditingOrder(null);
+      setFormName('');
+      setFormPhone('');
+      setFormAddress('');
+      setFormReferrer('');
+      setFormDeliveryDate('');
+      setFormAmount('0');
+      setFormBankLast5('');
+      setFormNote('');
+    }
+    setIsFormOpen(true);
+  };
+
+  const saveOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        customerName: formName,
+        phone: formPhone,
+        address: formAddress,
+        referrer: formReferrer,
+        deliveryDate: formDeliveryDate,
+        totalAmount: parseInt(formAmount) || 0,
+        bankLast5: formBankLast5,
+        note: formNote,
+        // Default values for new orders:
+        deliveryMethod: editingOrder ? editingOrder.deliveryMethod : '人工新增',
+        items: editingOrder ? editingOrder.items : [],
+        subtotal: editingOrder ? editingOrder.subtotal : parseInt(formAmount) || 0,
+        shipping: editingOrder ? editingOrder.shipping : 0,
+      };
+
+      if (editingOrder) {
+        // Update
+        const res = await fetch(`/api/orders/${editingOrder.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error('Update failed');
+      } else {
+        // Create
+        const res = await fetch(`/api/orders`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error('Create failed');
+      }
+      await fetchOrders();
+      setIsFormOpen(false);
+    } catch (err) {
+      alert('儲存失敗，請稍後再試');
+    }
+  };
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -210,6 +289,9 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <p className="text-xs text-stone-400">以下顯示所有客戶透過網頁送出的烤肉訂單與匯款後五碼資料：</p>
               <div className="flex items-center gap-2">
+                <button onClick={() => openForm()} className="bg-stone-800 hover:bg-stone-700 text-blue-400 text-xs px-3 py-1.5 rounded-xl border border-stone-700 flex items-center gap-1 transition-colors">
+                  <Plus size={14} /> 新增訂單
+                </button>
                 <button onClick={handleExportExcel} disabled={orders.length === 0} className="bg-stone-800 hover:bg-stone-700 text-green-400 text-xs px-3 py-1.5 rounded-xl border border-stone-700 flex items-center gap-1 disabled:opacity-50 transition-colors">
                   <Download size={14} /> 匯出 Excel
                 </button>
@@ -282,6 +364,12 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
                               <option value="已完成">已完成</option>
                             </select>
                             <button 
+                              onClick={() => openForm(r)}
+                              className="flex items-center justify-center gap-1 w-full bg-blue-950/40 hover:bg-blue-900/60 text-blue-400 border border-blue-900/50 rounded px-2 py-1 transition-colors"
+                            >
+                              <Edit size={12} /> 修改訂單
+                            </button>
+                            <button 
                               onClick={() => deleteOrder(r.id)}
                               className="flex items-center justify-center gap-1 w-full bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-900/50 rounded px-2 py-1 transition-colors"
                             >
@@ -294,6 +382,73 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+        
+        {/* Order Form Modal (Add / Edit) */}
+        {isFormOpen && (
+          <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-stone-900 border border-stone-700 rounded-3xl w-full max-w-lg p-6 shadow-2xl flex flex-col max-h-full">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-amber-400">
+                  {editingOrder ? '修改訂單' : '新增人工訂單'}
+                </h3>
+                <button onClick={() => setIsFormOpen(false)} className="text-stone-400 hover:text-white transition-colors bg-stone-800 p-1.5 rounded-full">
+                  <X size={18} />
+                </button>
+              </div>
+              <form onSubmit={saveOrder} className="overflow-y-auto custom-scrollbar pr-2 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-stone-400 mb-1">客戶姓名 *</label>
+                    <input type="text" required value={formName} onChange={e => setFormName(e.target.value)} className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-stone-400 mb-1">聯絡電話 *</label>
+                    <input type="text" required value={formPhone} onChange={e => setFormPhone(e.target.value)} className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-stone-400 mb-1">配送地址</label>
+                  <input type="text" value={formAddress} onChange={e => setFormAddress(e.target.value)} className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-stone-400 mb-1">總金額 (可含折扣) *</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500">$</span>
+                      <input type="number" required value={formAmount} onChange={e => setFormAmount(e.target.value)} className="w-full bg-stone-950 border border-stone-700 rounded-xl pl-7 pr-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-stone-400 mb-1">取貨/寄出日期</label>
+                    <input type="date" value={formDeliveryDate} onChange={e => setFormDeliveryDate(e.target.value)} className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs text-stone-400 mb-1">匯款末五碼</label>
+                    <input type="text" value={formBankLast5} onChange={e => setFormBankLast5(e.target.value)} className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-stone-400 mb-1">推薦人</label>
+                    <input type="text" value={formReferrer} onChange={e => setFormReferrer(e.target.value)} className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-stone-400 mb-1">備註 (可記錄人工新增的品項或折扣說明)</label>
+                  <textarea rows={3} value={formNote} onChange={e => setFormNote(e.target.value)} className="w-full bg-stone-950 border border-stone-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-500 transition-colors"></textarea>
+                </div>
+                <div className="pt-4 mt-2 flex justify-end gap-3">
+                  <button type="button" onClick={() => setIsFormOpen(false)} className="px-5 py-2.5 text-sm font-bold text-stone-400 hover:text-white hover:bg-stone-800 rounded-xl transition-colors">
+                    取消
+                  </button>
+                  <button type="submit" className="bg-amber-500 hover:bg-amber-400 text-stone-900 font-bold px-6 py-2.5 rounded-xl transition-colors shadow-md">
+                    儲存訂單
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

@@ -57,6 +57,36 @@ async function startServer() {
     }
   });
 
+  // Update order completely (edit order)
+  app.put('/api/orders/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const data = await fs.readFile(DB_FILE, 'utf-8');
+      const orders = JSON.parse(data);
+      
+      const orderIndex = orders.findIndex((o: any) => o.id === id);
+      if (orderIndex === -1) {
+        res.status(404).json({ error: 'Order not found' });
+        return;
+      }
+      
+      // Merge updated fields while keeping the original id and createdAt
+      orders[orderIndex] = {
+        ...orders[orderIndex],
+        ...req.body,
+        id: orders[orderIndex].id,
+        createdAt: orders[orderIndex].createdAt
+      };
+      
+      await fs.writeFile(DB_FILE, JSON.stringify(orders, null, 2), 'utf-8');
+      res.json(orders[orderIndex]);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Failed to update order' });
+    }
+  });
+
   // Update order status
   app.patch('/api/orders/:id/status', async (req, res) => {
     try {
