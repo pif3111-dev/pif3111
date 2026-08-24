@@ -93,7 +93,7 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
       return;
     }
 
-    const headers = ['訂單編號', '訂購時間', '推薦人', '客戶姓名', '聯絡電話', '配送地址/方式', '取貨/寄出日期', '訂購品項', '總金額', '匯款末五碼', '訂單狀態'];
+    const headers = ['訂單編號', '訂購時間', '推薦人', '客戶姓名', '聯絡電話', '配送地址/方式', '取貨/寄出日期', '訂購品項', '備註', '總金額', '匯款末五碼', '訂單狀態'];
     const rows = orders.map(r => [
       r.id,
       new Date(r.createdAt).toLocaleString(),
@@ -103,6 +103,7 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
       r.address || '面交自取',
       r.deliveryDate || '未指定',
       r.items.map(i => `${i.name} x ${i.qty}`).join(' ; '),
+      r.note || '無',
       r.totalAmount,
       r.bankLast5,
       r.status
@@ -254,6 +255,11 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
                           {r.items.map((i, idx) => (
                             <div key={idx} className="text-xs text-stone-300">• {i.name} x {i.qty}</div>
                           ))}
+                          {r.note && (
+                            <div className="mt-2 text-xs text-stone-400 bg-stone-900/50 p-2 rounded border border-stone-800">
+                              <span className="text-amber-500 font-bold">備註：</span>{r.note}
+                            </div>
+                          )}
                         </td>
                         <td className="p-3 text-xs align-top">
                           <span className="font-bold text-amber-400">${r.totalAmount}</span><br/>
