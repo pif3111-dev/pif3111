@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Lock, RefreshCw, X, Download, Trash2, DollarSign, ClipboardList, Activity, Edit, Plus } from 'lucide-react';
+import { Lock, RefreshCw, X, Download, Trash2, DollarSign, ClipboardList, Activity, Edit, Plus, LogOut } from 'lucide-react';
 import { Order, CartItem } from '../types';
+import { signInWithGoogle, auth, db } from '../firebase';
+import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 const PRODUCT_OPTIONS = [
   { type: 'set', name: 'A 經典雙響豬牛餐', price: 666 },
@@ -112,7 +114,7 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
   const saveOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const payload = {
+      const payload: any = {
         customerName: formName,
         phone: formPhone,
         address: formAddress,
@@ -121,34 +123,29 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
         totalAmount: parseInt(formAmount) || 0,
         bankLast5: formBankLast5,
         note: formNote,
-        // Default values for new orders:
         deliveryMethod: editingOrder ? editingOrder.deliveryMethod : '人工新增',
         items: formItems,
         subtotal: formItems.reduce((sum, i) => sum + i.price * i.qty, 0),
         shipping: editingOrder ? editingOrder.shipping : 0,
+        status: editingOrder ? editingOrder.status : '未對帳'
       };
 
       if (editingOrder) {
         // Update
-        const res = await fetch(`/api/orders/${editingOrder.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) throw new Error('Update failed');
+        const docRef = doc(db, 'orders', editingOrder.id);
+        await updateDoc(docRef, payload);
       } else {
         // Create
-        const res = await fetch(`/api/orders`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) throw new Error('Create failed');
+        payload.createdAt = new Date().toISOString();
+        const docRef = doc(collection(db, 'orders'));
+        payload.id = docRef.id;
+        await setDoc(docRef, payload);
       }
       await fetchOrders();
       setIsFormOpen(false);
     } catch (err) {
-      alert('儲存失敗，請稍後再試');
+      console.error(err);
+      alert('儲存失敗，請確認您是否有管理員權限');
     }
   };
 
@@ -156,13 +153,15 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/orders');
-      if (!res.ok) throw new Error('Failed to fetch orders');
-      const data = await res.json();
-      // sort by date descending
+      const querySnapshot = await getDocs(collection(db, 'orders'));
+      const data: Order[] = [];
+      querySnapshot.forEach((doc) => {
+        data.push({ id: doc.id, ...doc.data() } as Order);
+      });
       data.sort((a: Order, b: Order) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setOrders(data);
     } catch (err) {
+      console.error(err);
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setLoading(false);
@@ -170,39 +169,46 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
   };
 
   useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(user => {
+      if (user) {
+        setIsAuthenticated(true);
+      } else {
+        setIsAuthenticated(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
     if (isOpen && isAuthenticated) {
       fetchOrders();
     }
     if (!isOpen) {
       // Reset state when closed
-      setIsAuthenticated(false);
-      setPasswordInput('');
+      setIsFormOpen(false);
     }
   }, [isOpen, isAuthenticated]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === '60993211') {
-      setIsAuthenticated(true);
-    } else {
-      alert('密碼錯誤！');
-      setPasswordInput('');
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      alert('登入失敗，請重試！');
     }
+  };
+
+  const handleLogout = async () => {
+    await auth.signOut();
   };
 
   const updateOrderStatus = async (id: string, newStatus: string) => {
     try {
-      const res = await fetch(`/api/orders/${id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus }),
-      });
-      if (!res.ok) throw new Error('Failed to update status');
-      
-      // Update local state to reflect change
+      const docRef = doc(db, 'orders', id);
+      await updateDoc(docRef, { status: newStatus });
       setOrders(prev => prev.map(o => o.id === id ? { ...o, status: newStatus } : o));
     } catch (err) {
-      alert('更新狀態失敗，請稍後再試。');
+      alert('更新狀態失敗，請確認您是否有管理員權限');
     }
   };
 
@@ -212,15 +218,11 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
     }
     
     try {
-      const res = await fetch(`/api/orders/${id}`, {
-        method: 'DELETE',
-      });
-      if (!res.ok) throw new Error('Failed to delete order');
-      
-      // Update local state to remove the order
+      const docRef = doc(db, 'orders', id);
+      await deleteDoc(docRef);
       setOrders(prev => prev.filter(o => o.id !== id));
     } catch (err) {
-      alert('刪除訂單失敗，請稍後再試。');
+      alert('刪除訂單失敗，請確認您是否有管理員權限');
     }
   };
 
@@ -280,22 +282,14 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
             <div className="bg-stone-800 p-4 rounded-full text-amber-400 mb-2">
               <Lock size={48} />
             </div>
-            <h4 className="text-xl font-bold text-white">需要密碼驗證</h4>
-            <p className="text-stone-400 text-sm text-center">請輸入廠商專屬密碼以存取後台管理系統</p>
+            <h4 className="text-xl font-bold text-white">需要管理員權限</h4>
+            <p className="text-stone-400 text-sm text-center">請使用管理員 Google 帳號登入以存取後台管理系統</p>
             <form onSubmit={handleLogin} className="flex flex-col w-full max-w-xs space-y-4">
-              <input
-                type="password"
-                placeholder="請輸入密碼..."
-                value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                className="bg-stone-950 border border-stone-700 rounded-xl px-4 py-3 text-white text-center tracking-widest focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-colors"
-                autoFocus
-              />
               <button
                 type="submit"
                 className="bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold py-3 rounded-xl transition-all shadow-md w-full"
               >
-                登入
+                使用 Google 登入
               </button>
             </form>
           </div>
@@ -346,7 +340,7 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
 
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <p className="text-xs text-stone-400">以下顯示所有客戶透過網頁送出的烤肉訂單與匯款後五碼資料：</p>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button onClick={() => openForm()} className="bg-stone-800 hover:bg-stone-700 text-blue-400 text-xs px-3 py-1.5 rounded-xl border border-stone-700 flex items-center gap-1 transition-colors">
                   <Plus size={14} /> 新增訂單
                 </button>
@@ -355,6 +349,9 @@ export function AdminModal({ isOpen, onClose }: AdminModalProps) {
                 </button>
                 <button onClick={fetchOrders} disabled={loading} className="bg-stone-800 hover:bg-stone-700 text-amber-400 text-xs px-3 py-1.5 rounded-xl border border-stone-700 flex items-center gap-1 disabled:opacity-50 transition-colors">
                   <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> 重新整理
+                </button>
+                <button onClick={handleLogout} className="bg-stone-800 hover:bg-stone-700 text-red-400 text-xs px-3 py-1.5 rounded-xl border border-stone-700 flex items-center gap-1 transition-colors">
+                  <LogOut size={14} /> 登出
                 </button>
               </div>
             </div>

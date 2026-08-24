@@ -4,6 +4,8 @@ import { CartItem, Order } from './types';
 import { CartModal } from './components/CartModal';
 import { AdminModal } from './components/AdminModal';
 import { MessageModal } from './components/MessageModal';
+import { db } from './firebase';
+import { collection, doc, setDoc } from 'firebase/firestore';
 
 export default function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -77,18 +79,18 @@ export default function App() {
 
   const handleSubmitOrder = async (order: Partial<Order>) => {
     try {
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(order)
-      });
-      if (!res.ok) throw new Error('Failed to submit order');
-      
-      const saved = await res.json();
+      const newOrder = {
+        ...order,
+        createdAt: new Date().toISOString(),
+        status: '未對帳'
+      };
+
+      const docRef = doc(collection(db, 'orders'));
+      await setDoc(docRef, newOrder);
       
       showMsg(
         "訂單成立",
-        `感謝您的預購！您的訂單已成功送出。\n總金額 $${saved.totalAmount} 元，請記得完成匯款（中國信託二重埔 123540088692），我們將盡速為您處理！`,
+        `感謝您的預購！您的訂單已成功送出。\n總金額 $${newOrder.totalAmount} 元，請記得完成匯款（中國信託二重埔 123540088692），我們將盡速為您處理！`,
         "success"
       );
       setCart([]);

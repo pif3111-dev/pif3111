@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isAdmin() {
+      return request.auth != null && 
+             request.auth.token.email == 'pif3111@gmail.com' && 
+             request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidCartItem(item) {
+      return item.keys().hasAll(['type', 'name', 'price', 'qty']) &&
+             item.keys().size() == 4 &&
+             item.type is string && item.type.size() <= 10 &&
+             item.name is string && item.name.size() <= 100 &&
+             item.price is number && item.price >= 0 &&
+             item.qty is number && item.qty >= 1;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll([
+               'createdAt', 'customerName', 'phone', 'deliveryMethod', 
+               'items', 'subtotal', 'shipping', 'totalAmount', 'status'
+             ]) &&
+             data.createdAt is string && data.createdAt.size() <= 50 &&
+             data.customerName is string && data.customerName.size() <= 100 &&
+             data.phone is string && data.phone.size() <= 20 &&
+             data.deliveryMethod is string && data.deliveryMethod.size() <= 50 &&
+             (!('deliveryDate' in data) || (data.deliveryDate is string && data.deliveryDate.size() <= 50)) &&
+             (!('address' in data) || (data.address is string && data.address.size() <= 200)) &&
+             (!('referrer' in data) || (data.referrer is string && data.referrer.size() <= 100)) &&
+             (!('bankLast5' in data) || (data.bankLast5 is string && data.bankLast5.size() <= 5)) &&
+             (!('note' in data) || (data.note is string && data.note.size() <= 500)) &&
+             data.items is list && data.items.size() >= 1 && data.items.size() <= 50 &&
+             isValidCartItem(data.items[0]) &&
+             data.subtotal is number && data.subtotal >= 0 &&
+             data.shipping is number && data.shipping >= 0 &&
+             data.totalAmount is number && data.totalAmount >= 0 &&
+             data.status is string && data.status.size() <= 50;
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAdmin();
+      allow delete: if isAdmin() && isValidId(orderId);
+      
+      // Anyone can create an order (this is a public ordering form)
+      // or admin can manually create an order
+      allow create: if isValidId(orderId) && isValidOrder(incoming());
+      
+      // Only admin can update an order
+      allow update: if isAdmin() && isValidId(orderId) && isValidOrder(incoming()) && (
+        incoming().diff(existing()).affectedKeys().hasAny([
+          'customerName', 'phone', 'deliveryMethod', 'deliveryDate', 'address', 
+          'referrer', 'bankLast5', 'note', 'items', 'subtotal', 'shipping', 
+          'totalAmount', 'status'
+        ])
+      );
+    }
+  }
+}
